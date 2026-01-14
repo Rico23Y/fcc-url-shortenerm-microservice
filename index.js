@@ -27,8 +27,8 @@ app.get('/', function(req, res) {
 app.post('/api/shorturl', async (req, res) => {
   const inputUrl = req.body.url;
 
-  // 1. Must be http or https
-  if (!/^https?:\/\//i.test(inputUrl)) {
+  // FCC rule #1: must start with http:// or https://
+  if (!inputUrl || !/^https?:\/\//i.test(inputUrl)) {
     return res.json({ error: 'invalid url' });
   }
 
@@ -39,26 +39,27 @@ app.post('/api/shorturl', async (req, res) => {
     return res.json({ error: 'invalid url' });
   }
 
-  // 2. DNS check
+  // FCC rule #2: must resolve via DNS
   dns.lookup(hostname, async (err) => {
     if (err) {
       return res.json({ error: 'invalid url' });
     }
 
     const count = await urls.countDocuments({});
-    const doc = {
-      original_url: inputUrl,
-      short_url: count + 1
-    };
+    const short = count + 1;
 
-    await urls.insertOne(doc);
+    await urls.insertOne({
+      original_url: inputUrl,
+      short_url: short
+    });
 
     res.json({
       original_url: inputUrl,
-      short_url: doc.short_url
+      short_url: short
     });
   });
 });
+
 
 
 app.get('/api/shorturl/:short_url', async (req, res) => {
