@@ -62,15 +62,12 @@ app.post('/api/shorturl', async (req, res) => {
 
 
 
-app.get('/api/shorturl/:short_url', async (req, res) => {
+app.head('/api/shorturl/:short_url', async (req, res) => {
   const doc = await urls.findOne({ short_url: +req.params.short_url });
-
-  if (!doc) {
-    return res.json({ error: 'invalid url' });
-  }
-
-  res.redirect(doc.original_url);
+  if (!doc) return res.status(404).end();
+  res.redirect(301, doc.original_url);
 });
+
 
 
 app.listen(port, function() {
