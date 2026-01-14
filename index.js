@@ -24,33 +24,53 @@ app.get('/', function(req, res) {
 });
 
 // Your first API endpoint
-app.post('/api/shorturl', function(req, res) {
-  console.log(req.body)
-  const url = req.body.url
-  const dnslookup = dns.lookup(urlparser.parse(url).hostname,
-async (error, adress) => {
-  if (!adress){
-    res.json({error: "Invalid URL"})
-  } else {
-    
-    const urlCount = await urls.countDocuments({})
-    const urlDoc = {
-      url,
-      short_url: urlCount
+app.post('/api/shorturl', async (req, res) => {
+  const inputUrl = req.body.url;
+
+  // 1. Must be http or https
+  if (!/^https?:\/\//i.test(inputUrl)) {
+    return res.json({ error: 'invalid url' });
+  }
+
+  let hostname;
+  try {
+    hostname = new URL(inputUrl).hostname;
+  } catch {
+    return res.json({ error: 'invalid url' });
+  }
+
+  // 2. DNS check
+  dns.lookup(hostname, async (err) => {
+    if (err) {
+      return res.json({ error: 'invalid url' });
     }
 
-    const result = await urls.insertOne(urlDoc)
-    console.log(result);
-    res.json({ original_url: url, short_url: urlCount })
-  }
-})
+    const count = await urls.countDocuments({});
+    const doc = {
+      original_url: inputUrl,
+      short_url: count + 1
+    };
+
+    await urls.insertOne(doc);
+
+    res.json({
+      original_url: inputUrl,
+      short_url: doc.short_url
+    });
+  });
 });
 
-app.get("/api/shorturl/:short_url", async (req, res) => {
-  const shorturl = req.params.short_url
-  const urlDoc = await urls.findOne({ short_url: +shorturl })
-  res.redirect(urlDoc.url)
-})
+
+app.get('/api/shorturl/:short_url', async (req, res) => {
+  const doc = await urls.findOne({ short_url: +req.params.short_url });
+
+  if (!doc) {
+    return res.json({ error: 'invalid url' });
+  }
+
+  res.redirect(doc.original_url);
+});
+
 
 app.listen(port, function() {
   console.log(`Listening on port ${port}`);
